@@ -1,0 +1,56 @@
+{
+	"name": "Agility Commerce Tools App ",
+	"documentationLink": "https://agilitycms.com/docs/apps/commercetools",
+	"description": "Connect your Commerce Tools products with Agility.",
+	"version": "1.0.0",
+	"__sdkVersion": "2.0.0",
+	"configValues": [
+		{
+			"label": "Project Key",
+			"description": "Your Commerce Tools Project Key.",
+			"name": "projectKey",
+			"type": "string"
+		},
+		{
+			"label": "Client ID",
+			"description": "Your Commerce Tools API Client ID.",
+			"name": "clientID",
+			"type": "string"
+		},
+		{
+			"label": "Client Secret",
+			"description": "Your Commerce Tools API Client Secret.",
+			"name": "clientSecret",
+			"type": "string"
+		},
+		{
+			"label": "Region",
+			"description": "The region - look in your URL for this  (e.g. us-central1.gcp, us-east-2.aws, europe-west1.gcp, eu-central-1.aws, australia-southeast1).",
+			"name": "region",
+			"type": "string"
+		},
+		{
+			"label": "Locale",
+			"description": "The locale your products are in.",
+			"name": "locale",
+			"type": "string"
+		}
+	],
+	"capabilities": {
+		"fields": [
+			{
+				"name": "commercetools-product",
+				"label": "Commerce Tools Product",
+				"description": "A product from your Commerce Tools account."
+			}
+		],
+		"modals": [
+			{
+				"name": "commercetools-product-selector",
+				"label": "Commerce Tools Product Selector",
+				"description": "Select a product from your Commerce Tools account."
+			}
+		],
+		"installScreen": false
+	}
+}
