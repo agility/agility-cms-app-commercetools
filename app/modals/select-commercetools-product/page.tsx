@@ -2,14 +2,8 @@
 "use client"
 
 import ProductListing from "@/components/ProductListing"
-import useGraphQLToken from "@/hooks/useGraphQLToken"
-import useProductListing from "@/hooks/useProductListing"
-import useStoreInfo from "@/hooks/useStoreInfo"
-import { Product } from "@/types/Product"
-import { useAgilityAppSDK, closeModal, setHeight } from "@agility/app-sdk"
+import { useAgilityAppSDK, closeModal } from "@agility/app-sdk"
 import { Button } from "@agility/plenum-ui"
-import { useEffect, useState } from "react"
-import useSWR from "swr"
 
 export default function SelectProduct() {
 	const { initializing, appInstallContext } = useAgilityAppSDK()

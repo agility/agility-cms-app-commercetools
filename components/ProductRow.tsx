@@ -11,44 +11,41 @@ interface Props {
 }
 
 export default function ProductRow({ product, onSelectProduct }: Props) {
+
+
+	console.log("ProductRow render", product)
+
+	//const imageListingUrl =
+
 	return (
-		<div className="flex flex-row items-center rounded shadow border border-gray-100 p-2 gap-3">
-			<div className="flex-shrink-0 h-10 w-10 rounded">
-				<img src={product.image.listingUrl} className="h-10 w-10 rounded" />
+		<div className="flex flex-row items-center rounded-lg shadow-sm border border-gray-200 hover:border-gray-300 p-4 gap-4 transition-all hover:shadow-md bg-white">
+			<div className="flex-shrink-0 h-16 w-16 rounded-md overflow-hidden bg-gray-50">
+				<img
+					src={product.image.detailUrl}
+					className="h-16 w-16 object-cover"
+					alt={product.name}
+				/>
 			</div>
-			<div className="flex-1">
-				<div className="text-sm font-medium text-gray-900">{product.name}</div>
-				<div className="text-sm text-gray-500 line-clamp-3">{product.description}</div>
-			</div>
-			{product.sku && (
-				<div className="text-sm text-gray-500 flex-nowrap line-clamp-1 w-32 break-all" title={product.sku}>
-					SKU: {product.sku}
+			<div className="flex-1 min-w-0">
+				<div className="text-base font-semibold text-gray-900 truncate mb-1">
+					{product.name}
 				</div>
-			)}
-			{/* <div className="text-sm text-gray-500 flex-nowrap line-clamp-1 w-24 break-all flex gap-1">
-				{node?.inventory?.isInStock ? (
-					<div title="In stock">
-						<IconCheck className="h-5 w-5 text-green-500" />
-					</div>
-				) : (
-					<div title="Out of stock">
-						<IconBan className="h-5 w-5 text-red-500" />
+				{product.sku && (
+					<div className="text-sm text-gray-500 truncate" title={product.sku}>
+						SKU: {product.sku}
 					</div>
 				)}
-
-				<div>{node?.availabilityV2?.status} </div>
-			</div> */}
-
-			{/* {node?.prices?.price?.value && (
-				<div className="text-sm text-gray-500 flex-nowrap line-clamp-1 w-32 break-all">
-					${node.prices.price.value} {node.prices.price.currencyCode}
-				</div>
-			)} */}
-
-			<div className="">
+			</div>
+			<div className="flex-shrink-0">
 				<button
 					type="button"
-					className={classNames("inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-500 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500")}
+					className={classNames(
+						"inline-flex items-center px-6 py-2.5 border border-transparent",
+						"text-sm font-medium rounded-lg shadow-sm text-white",
+						"bg-gray-500 hover:bg-gray-700",
+						"focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500",
+						"transition-colors duration-150"
+					)}
 					onClick={() => {
 						onSelectProduct(product)
 					}}

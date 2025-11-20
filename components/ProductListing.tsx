@@ -1,9 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
-import useGraphQLToken from "@/hooks/useGraphQLToken"
-import useProductListing, { getProductListing } from "@/hooks/useProductListing"
+import { getProductListing } from "@/lib/getProductListing"
 import InfiniteScroll from 'react-infinite-scroll-component';
 import { Button, TextInputAddon } from "@agility/plenum-ui"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { debounce } from "underscore"
 import Loader from "./Loader"
 import ProductRow from "./ProductRow"
@@ -19,8 +18,11 @@ interface Props {
 }
 
 export default function ProductListing({ clientID, clientSecret, region, projectKey, locale, onSelectProduct }: Props) {
-	const { gqlToken } = useGraphQLToken({ clientID, clientSecret, region, projectKey })
 
+
+	const scrollRef = useRef<HTMLDivElement>(null)
+
+	const [hasMore, setHasMore] = useState<boolean>(true)
 	const [isLoading, setIsLoading] = useState<boolean>(true)
 	const [offset, setOffset] = useState<number>(0)
 	const [filter, setFilter] = useState("")
@@ -29,6 +31,8 @@ export default function ProductListing({ clientID, clientSecret, region, project
 	const [error, setError] = useState<string | null>(null)
 	const [products, setProducts] = useState<any[]>([])
 	const [totalItems, setTotalItems] = useState<number>(0)
+	const [searchEnabled, setSearchEnabled] = useState<boolean | null>(null)
+	const [searchCheckMessage, setSearchCheckMessage] = useState<string>("")
 
 	const setfilterValueAndDebounce = (val: string) => {
 		setFilter(val)
@@ -43,71 +47,109 @@ export default function ProductListing({ clientID, clientSecret, region, project
 			setOffset(0)
 
 			//set the filter
-			setfilterValueBounced(value.toLowerCase())
+			setfilterValueBounced(value)
 		}, 250),
 		[]
 	)
 
-	const storeUrl = `https://api.${region}.commercetools.com/${projectKey}`
+	// Check if search endpoint is enabled
+	useEffect(() => {
+		const checkSearchEnabled = async () => {
+			try {
+				const params = new URLSearchParams({
+					projectKey,
+					clientId: clientID,
+					clientSecret,
+					region,
+				})
+
+				const res = await fetch(`/api/check-search-enabled?${params.toString()}`)
+				const data = await res.json()
+
+				if (res.ok) {
+					setSearchEnabled(data.enabled)
+					if (!data.enabled) {
+						setSearchCheckMessage(data.instructions || "Search is not enabled for this project")
+					}
+				}
+			} catch (err) {
+				console.error("Error checking search status", err)
+				// Default to disabled if we can't check
+				setSearchEnabled(false)
+			}
+		}
+
+		checkSearchEnabled()
+	}, [projectKey, clientID, clientSecret, region])
 
 	useEffect(() => {
-		if (!gqlToken) {
-			return
-		}
+
 
 		setIsLoading(true)
 		setTotalItems(0)
 		setError("")
 
 		getProductListing({
-			storeUrl,
+			projectKey,
+			clientId: clientID,
+			clientSecret,
+			region,
 			locale,
-			token: gqlToken.access_token,
 			search: filterValueBounced,
 			offset: 0
 		}).then((data) => {
-			console.log("initial data", data)
 
 			setProducts(data.results)
 			setTotalItems(data.total)
 			setOffset(data.count)
 
+			// Check if there are more products to load
+			if (data.count === 0 || data.results.length >= data.total) {
+				setHasMore(false)
+			} else {
+				setHasMore(true)
+			}
+
 		}).catch((err) => {
 			console.error("Error fetching data", err)
-			setError("Error fetching data")
+			setError(err.message || "Error fetching data")
 		}).finally(() => {
 			setIsLoading(false)
 		})
 
 
-	}, [gqlToken, storeUrl, filterValueBounced])
+	}, [projectKey, clientID, clientSecret, region, locale, filterValueBounced])
 
 	const fetchData = async () => {
-		if (!gqlToken) {
-			return
-		}
+
 		setError("")
 
 		try {
 			const res = await getProductListing({
+				projectKey,
+				clientId: clientID,
+				clientSecret,
+				region,
 				locale,
-				storeUrl,
-				token: gqlToken.access_token,
 				search: filterValueBounced,
 				offset
 			})
 
-			console.log("fetchData", res)
-
 			//update the products, offset and total items
 			setProducts((prev) => [...prev, ...res.results])
 			setTotalItems(res.total)
-			setOffset((prev) => prev + res.count)
+			const newOffset = offset + res.count
+			setOffset(newOffset)
+
+			// Check if there are more products to load
+			if (res.count === 0 || newOffset >= res.total) {
+				setHasMore(false)
+			}
 
 
-		} catch (err) {
+		} catch (err: any) {
 			console.error("Error fetching data", err)
-			setError("Error fetching data")
+			setError(err.message || "Error fetching data")
 		} finally {
 			setIsLoading(false)
 		}
@@ -124,18 +166,55 @@ export default function ProductListing({ clientID, clientSecret, region, project
 
 
 	return (
-		<div className=" flex flex-col h-full">
-			<div className="flex items-center gap-2">
-				<div className="p-1 flex-1">
-					<TextInputAddon
-						placeholder="Search"
-						type="search"
-						value={filter}
-						onChange={(str) => setfilterValueAndDebounce(str.trim())}
-					/>
-				</div>
-				<div className="text-gray-500 text-sm">
-					{totalItems ?? "?"} product(s) returned
+		<div className="flex flex-col h-full">
+			<div className="flex flex-col gap-3 p-4 bg-gray-50 border-b border-gray-200">
+				{searchEnabled && (
+					<div className="w-full">
+						<TextInputAddon
+							placeholder="Search products..."
+							type="search"
+							value={filter}
+							onChange={(str) => setfilterValueAndDebounce(str.trim())}
+						/>
+					</div>
+				)}
+				<div className="flex items-center justify-between gap-3 flex-wrap">
+					<div className="text-gray-600 text-sm font-medium">
+						{isLoading ? (
+							<span className="flex items-center gap-2">
+								<Loader className="!h-4 !w-4" />
+								Loading products...
+							</span>
+						) : (
+							<span>
+								{totalItems ?? "?"} product{totalItems !== 1 ? 's' : ''} found
+							</span>
+						)}
+					</div>
+					{searchEnabled === false && searchCheckMessage && (
+						<div className="relative group">
+							<div className="flex gap-1.5 items-center cursor-help">
+								<div className="text-sm font-medium text-blue-600">Search Not Enabled</div>
+								<svg
+									className="w-4 h-4 text-blue-600"
+									fill="none"
+									stroke="currentColor"
+									viewBox="0 0 24 24"
+								>
+									<path
+										strokeLinecap="round"
+										strokeLinejoin="round"
+										strokeWidth={2}
+										d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+							</div>
+							<div className="absolute right-0 top-6 w-72 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-opacity z-10">
+								<div className="font-semibold mb-1">Search Not Enabled</div>
+								<div dangerouslySetInnerHTML={{ __html: searchCheckMessage }}></div>
+							</div>
+						</div>
+					)}
 				</div>
 			</div>
 			{isLoading && (
@@ -146,46 +225,55 @@ export default function ProductListing({ clientID, clientSecret, region, project
 					</div>
 				</div>
 			)}
-			{error && <div>Error? {`${error}`}</div>}
+			{error && (
+				<div className="p-4 m-4 bg-red-50 border border-red-200 rounded-md">
+					<div className="text-red-800 font-semibold mb-1">Error</div>
+					<div className="text-red-700 text-sm">{error}</div>
+				</div>
+			)}
 			{!isLoading && !error && products && (
-				<div className="min-h-0 flex-1 py-4">
-					<div className="scroll-black h-full overflow-y-auto">
-						<ul className="space-y-2 p-2 ">
-
-
+				<div className="min-h-0 flex-1">
+					<div id="scrollDiv" ref={scrollRef} className="h-full overflow-y-auto overflow-x-hidden">
+						<div className="p-4">
 							<InfiniteScroll
-								dataLength={products.length} //This is important field to render the next data
+								dataLength={products.length}
 								next={fetchData}
-								hasMore={true}
-								loader={<div><Loader className="!h-6 !w-6 " /></div>}
-								endMessage={
-									<div> - </div>
+								hasMore={hasMore}
+								scrollableTarget="scrollDiv"
+								loader={
+									<div className="flex justify-center py-4">
+										<Loader className="!h-6 !w-6" />
+									</div>
 								}
-							// below props only if you need pull down functionality
+								endMessage={
+									<div className="text-center py-4 text-gray-400 text-sm">
+										{products.length > 0 ? 'End of results' : ''}
+									</div>
+								}
 							>
-
-								{products?.map((product: any) => (
-									<li key={product.id}>
-										<ProductRow
-
-											product={{
-												id: product.id,
-												path: product.slug,
-												sku: product.allVariants[0].sku,
-												entityId: product.id,
-												image: {
-													listingUrl: product.allVariants[0].images[0].url || "",
-													detailUrl: product.allVariants[0].images[0].url || "",
-												},
-												name: product.name,
-												description: "",
-											}}
-											onSelectProduct={onSelectProduct}
-										/>
-									</li>
-								))}
+								<ul className="space-y-3">
+									{products?.map((product: any) => (
+										<li key={product.id}>
+											<ProductRow
+												product={{
+													id: product.id,
+													path: product.slug,
+													sku: product.allVariants[0].sku,
+													entityId: product.id,
+													image: {
+														listingUrl: product.allVariants[0].images[0].url || "",
+														detailUrl: product.allVariants[0].images[0].url || "",
+													},
+													name: product.name,
+													description: "",
+												}}
+												onSelectProduct={onSelectProduct}
+											/>
+										</li>
+									))}
+								</ul>
 							</InfiniteScroll>
-						</ul>
+						</div>
 					</div>
 				</div>
 			)}

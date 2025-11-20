@@ -6,8 +6,8 @@ import useProductDetails from "@/hooks/useProductDetails"
 import { Product } from "@/types/Product"
 import { useAgilityAppSDK, contentItemMethods, openModal, useResizeHeight } from "@agility/app-sdk"
 import { Button, ButtonDropDown } from "@agility/plenum-ui"
-import { IconBan, IconBarcode, IconBuildingStore, IconCheck, IconChevronDown, IconFileBarcode } from "@tabler/icons-react"
-import { useEffect, useRef, useState } from "react"
+import { IconBan, IconBarcode, IconChevronDown, IconExternalLink } from "@tabler/icons-react"
+import { useEffect, useState } from "react"
 
 export default function ProductField() {
 	const { initializing, appInstallContext, field, fieldValue } = useAgilityAppSDK()
@@ -22,8 +22,14 @@ export default function ProductField() {
 
 	const [selectedProduct, onsetSelectedProduct] = useState<Product | null | undefined>(null)
 
-	//const { productDetail } = useProductDetails({ store, token: access_token, entityID: selectedProduct?.entityId })
-	const productDetail = null
+	const { productDetail } = useProductDetails({
+		projectKey,
+		clientId: clientID,
+		clientSecret,
+		region,
+		locale,
+		productId: selectedProduct?.id
+	})
 
 	const setSelectedProduct = (product: Product | null | undefined) => {
 		const productJSON = product ? JSON.stringify(product) : ""
@@ -70,87 +76,142 @@ export default function ProductField() {
 	if (initializing) return null
 
 	return (
-		<div ref={containerRef} id="product-field" className="bg-white">
+		<div ref={containerRef} id="product-field" className="">
 			<div className="p-[1px]">
 				{selectedProduct && (
-					<div className="flex border border-gray-200 rounded gap-2">
-						<div className="rounded-l shrink-0">
-							<img src={selectedProduct.image?.detailUrl} className="h-60 rounded-l" alt={selectedProduct.name} />
+					<div className="">
+						{/* Header with Browse button */}
+						<div className="flex items-center justify-between px-4 pb-3 ">
+							<h3 className="text-sm font-medium text-gray-700">A product has been selected.</h3>
+							<ButtonDropDown
+								button={{
+									type: "alternative",
+									size: "base",
+									label: "Browse",
+									icon: "CollectionIcon",
+									onClick: () => selectProduct(),
+								}}
+								dropDown={{
+									items: [
+										[
+											{
+												label: "Remove Product",
+												icon: "TrashIcon",
+												onClick: () => {
+													setSelectedProduct(null)
+												},
+											},
+										],
+									],
+									IconElement: () => <IconChevronDown />,
+								}}
+							/>
 						</div>
-						<div className="flex-1 flex-col p-2 ">
-							<div className="flex gap-2">
-								<div>
-									<div className="text-xl font-medium">{selectedProduct.name}</div>
-									<div className=" text-gray-500 line-clamp-2 break-words">{selectedProduct.description}</div>
-								</div>
-								<div className="flex justify-end p-1 mb-2">
+
+						{/* Product Content */}
+						<div className="rounded border border-gray-300 bg-white flex gap-4 p-4">
+							{/* Product Image */}
+							<div className="shrink-0">
+								<img
+									src={selectedProduct.image?.detailUrl}
+									className="h-48 w-48 object-cover rounded border border-gray-200"
+									alt={selectedProduct.name}
+								/>
+							</div>
+
+							{/* Product Details */}
+							<div className="flex-1 min-w-0">
+								{/* Product Name */}
+								<h2 className="text-2xl font-semibold text-gray-900 mb-2">
+									{selectedProduct.name}
+								</h2>
+
+								{/* Product Description */}
+								{productDetail?.description && (
+									<p className="text-sm text-gray-600 mb-4 line-clamp-2">
+										{productDetail.description}
+									</p>
+								)}
+
+								{/* Product Info Grid */}
+								<div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mt-4">
 									<div>
-										<ButtonDropDown
-											button={{
-												type: "secondary",
-												size: "base",
-												label: "Browse",
-												icon: "CollectionIcon",
-												onClick: () => selectProduct(),
-											}}
-											dropDown={{
-												items: [
-													[
-														{
-															label: "Remove Product",
-															icon: "TrashIcon",
-															onClick: () => {
-																setSelectedProduct(null)
-															},
-														},
-													],
-												],
-												IconElement: () => <IconChevronDown />,
-											}}
-										/>
-									</div>
-								</div>
-							</div>
-
-							<div className=" flex justify-between py-2 mt-5 border-b border-b-gray-200 ">
-								<div className="text-gray-500">SKU</div>
-								<div className="">{selectedProduct.sku}</div>
-							</div>
-
-							{productDetail && (
-								<>
-									{/* <div className=" flex justify-between py-2 border-b border-b-gray-200">
-										<div className="text-gray-500">Stock</div>
-										<div className="flex gap-1 items-center">
-											{productDetail?.inventory?.isInStock ? (
-												<div title="In stock">
-													<IconCheck className="h-5 w-5 text-green-500" />
-												</div>
-											) : (
-												<div title="Out of stock">
-													<IconBan className="h-5 w-5 text-red-500" />
-												</div>
-											)}
-											{productDetail.availabilityV2?.status}
+										<div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+											SKU
+										</div>
+										<div className="text-sm font-medium text-gray-900 flex items-center gap-2">
+											<IconBarcode className="h-4 w-4 text-gray-400" />
+											<a
+												href={`https://mc.${region}.commercetools.com/${projectKey}/products/${selectedProduct.id}`}
+												target="_blank"
+												rel="noopener noreferrer"
+												className="text-gray-900 underline hover:text-gray-700 flex items-center gap-1"
+											>
+												{selectedProduct.sku}
+												<IconExternalLink className="h-3.5 w-3.5" />
+											</a>
 										</div>
 									</div>
-									{productDetail?.prices?.price?.value && (
-										<div className=" flex justify-between py-2 border-b border-b-gray-200 ">
-											<div className="text-gray-500">Price</div>
-											<div className="">
-												${productDetail.prices.price.value} {productDetail.prices.price.currencyCode}
+
+									{productDetail?.masterVariant?.price && (
+										<div>
+											<div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+												Price
+											</div>
+											<div className="text-sm font-medium text-gray-900">
+												{(productDetail.masterVariant.price.value / 100).toFixed(2)} {productDetail.masterVariant.price.currencyCode}
 											</div>
 										</div>
-									)} */}
-								</>
-							)}
+									)}
+
+									{productDetail?.masterVariant?.images && productDetail.masterVariant.images.length > 1 && (
+										<div>
+											<div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+												Images
+											</div>
+											<div className="text-sm text-gray-900">
+												{productDetail.masterVariant.images.length} image{productDetail.masterVariant.images.length !== 1 ? 's' : ''}
+											</div>
+										</div>
+									)}
+
+									{productDetail?.variants && productDetail.variants.length > 0 && (
+										<div>
+											<div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+												Variants
+											</div>
+											<div className="text-sm text-gray-900">
+												{productDetail.variants.length} variant{productDetail.variants.length !== 1 ? 's' : ''}
+											</div>
+										</div>
+									)}
+
+									{productDetail?.categories && productDetail.categories.length > 0 && (
+										<div className="sm:col-span-2">
+											<div className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+												Categories
+											</div>
+											<div className="flex flex-wrap gap-2">
+												{productDetail.categories.map((category: any) => (
+													<span
+														key={category.id}
+														className="inline-flex items-center px-2.5 py-0.5 rounded-md text-sm font-medium bg-gray-100 text-gray-800"
+													>
+														{category.name}
+													</span>
+												))}
+											</div>
+										</div>
+									)}
+								</div>
+							</div>
 						</div>
 					</div>
 				)}
 
 				{!selectedProduct && (
 					<EmptySection
-						icon={<IconBuildingStore className="text-gray-400 h-12 w-12" stroke={1} />}
+						icon={<img src="/commercetools-symbol.svg" className="h-16 w-16 opacity-40" alt="CommerceTools" />}
 						messageHeading="No Product Selected"
 						messageBody="Select a product to attach it to this item."
 						buttonComponent={<Button type="alternative" onClick={() => selectProduct()} label="Browse Products" />}
